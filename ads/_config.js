@@ -72,6 +72,7 @@ export const adPrefetch = {
     'https://cstatic.weborama.fr/js/advertiserv2/adperf_launch_1.0.0_scrambled.js',
     'https://cstatic.weborama.fr/js/advertiserv2/adperf_core_1.0.0_scrambled.js',
   ],
+  yahoo: '//0.0.0.0:4000/dist/fileThatDoesNotExist.js',
   yahoojp: [
     'https://s.yimg.jp/images/listing/tool/yads/ydn/amp/amp.js',
     'https://yads.c.yimg.jp/js/yads.js',
