@@ -39,8 +39,22 @@ export function yahoo(global, data) {
 		beacons.forEach(function(beacon) {
 			var img = global.document.createElement('img');
 			img.setAttribute('src', beacon);
+			img.setAttribute('style', 'display: none;');
 			global.document.body.appendChild(img);
 		});
+	};
+
+	// returns an object of properties about the parent iframe (the one given by amp-ad)
+	var getIframeProperties = function() {
+		var result = {
+			width: 0,
+			height: 0
+		};
+
+		result.width = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
+		result.height = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+
+		return result;
 	};
 	
 	var fireBeaconAfterViewedTime = function(cancel) {
@@ -60,9 +74,11 @@ export function yahoo(global, data) {
 		}
 	};
 
-	if (data && data.adtype === "gemini") {
-		validateDataExists(data, ['beacon']);
-		global.context.observeIntersection(function(newrequest) {
+	// when the ad element is percentInView in the viewport, fire beacons provided
+	var trackAdElement = function(percentInView=100) {
+		// TODO: percentInView is not yet implemented
+
+		global.context.observeIntersection((newrequest) => {
     		newrequest.forEach(function(d) {
     			if (beaconFired) {
     				return;
@@ -77,6 +93,100 @@ export function yahoo(global, data) {
       			}
       		});
       	});
+	};
+
+	// these are the styles that should be present in any rendered UI (should be in it's own page at some point)
+	var getGeneralStyles = function() {
+		var css = '';
+
+		css += '.amp-ad-gemini {position: relative; }';
+		css += '.amp-ad-gemini {font: 13px/1.25 "Helvetica Neue", Helvetica, Arial, sans-serif}';
+
+		css += '.ad-feedback-button {position: absolute; top: 5px; right: 5px;}';
+		css += '.ad-feedback-button {background-color: #aaa; display: flex; align-items: center;}';
+		css += '.ad-feedback-button {justify-content: center; color: white; cursor: pointer; }';
+		css += '.ad-feedback-button {width: 15px; height: 14px; }'
+
+		css += '.gemini-ad-title {margin: 4px 0; font-size: 13px; font-weight: 400; } ';
+
+		css += '.ad-provider {display: block; margin: 0; padding: 3px 3px 3px 0; color: #96989f; }';
+		css += '.ad-provider {font-weight: 300; font-size: 11px; line-height: 14px; }';
+
+		return css;
+	};
+
+	// used when rendering the UI. This stylesheet is used in the amp-ad iframe
+	// extraStyles is a String
+	var renderStyleSheet = function(extraStyles) {
+		// get css as a string (can be put in a seperate file in the future)
+		var css = '';
+		css += getGeneralStyles();
+		if (extraStyles) {
+			css += extraStyles;
+		}
+
+		// add css to document
+		var head = document.getElementsByTagName('head')[0];
+		var style = document.createElement('style');
+		style.setAttribute('type', 'text/css');
+		style.appendChild(document.createTextNode(css));
+		head.appendChild(style);
+	};
+
+	// create the sidekick type UI, handle the rendering of the ad in the current iframe
+	var renderGeminiThumbnail = function() {
+		var div = document.createElement('div'),
+			iframeInfo = getIframeProperties(),
+			innerHtml = '',
+			extraStyles = '';
+
+		if (data.img) {
+			innerHtml += ('<img class="gemini-img" src="' + data.img + '" alt="' + data.title + '" />');
+			innerHtml += ('<span class="ad-feedback-button">x</span>');
+
+			extraStyles += ('.gemini-img {max-width: ' + iframeInfo.width + 'px; }');
+		}
+
+		if (data.title) {
+			innerHtml += ('<span class="gemini-ad-title">' + data.title + '</span>');
+		}
+
+		if (data.provider) {
+			innerHtml += ('<span class="ad-provider">' + data.provider + '</span>');
+		}
+
+		// render the style sheet with any extra styles set
+		renderStyleSheet(extraStyles);
+
+		div.innerHTML = innerHtml;
+		div.setAttribute('class', 'amp-ad-gemini');
+		document.body.appendChild(div);
+	};
+
+	// create the index page type UI, render ad in current DOM
+	var renderGeminiCard = function() {
+		console.log('RENDERING GEMINI CARD (todo)');
+	};
+
+	if (data && data.adtype === "gemini") {
+		validateDataExists(data, ['beacon']);
+
+		// is a gemini ad, may provide UI through template, or just provide tracking
+		if (!data.template) {
+			trackAdElement(100);
+		} else {
+			switch(data.template) {
+				case 'thumbnail':
+					renderGeminiThumbnail();
+					trackAdElement(100);
+					break;
+				case 'card':
+					renderGeminiCard();
+					trackAdElement(75);
+				default:
+					console.error('Yahoo amp-ad - Not a valid template :/');
+			}
+		}
 	} else { /* display ad */
 		validateDataExists(data, ['src']);
 
